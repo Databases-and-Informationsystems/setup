@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:17
+    container_name: annotation_database
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: s3cr3t
+      POSTGRES_DB: annotation_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - data:/var/lib/postgresql/data
+
+  flask:
+    build: ../../api
+    container_name: annotation_backend
+    environment:
+      FLASK_APP: app.py
+      FLASK_DEBUG: 1
+      FLASK_ENV: development
+    ports:
+      - "5001:5000"
+    volumes:
+      - ../../api:/app
+    depends_on:
+      - db
+
+  react-app:
+    build: ../../frontend
+    container_name: annotation_frontend
+    stdin_open: true
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../../frontend:/app
+    depends_on:
+      - flask
+
+
+volumes:
+  data:
+    name: annotation_data
