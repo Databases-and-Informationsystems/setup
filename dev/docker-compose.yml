@@ -25,18 +25,6 @@ services:
     depends_on:
       - db
 
-  react-app:
-    build: ../../frontend
-    container_name: annotation_frontend
-    stdin_open: true
-    ports:
-      - "3000:3000"
-    volumes:
-      - ../../frontend:/app
-    depends_on:
-      - flask
-
-
 volumes:
   data:
     name: annotation_data
