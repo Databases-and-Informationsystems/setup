@@ -20,13 +20,12 @@ show_help() {
   echo -e "${YELLOW}Options:${NC}"
   echo "  -s, --skip      Skip the database upgrade in dev mode"
   echo "  -v, --verbose   Run in verbose mode (stream all input/output to terminal)"
-  echo "  -d, --delete    Delete the volume 'annotation_data' before starting"
+  echo "  -d, --delete    Delete the volume annotation_data before starting"
   echo "  -h, --help      Show this help message"
   echo ""
   echo ""
   echo -e "${YELLOW}Tip:${NC}"
-  echo "It might be useful to alias 'run.sh'"
-  exit 0
+  echo "It might be useful to alias ./run.sh"
 }
 
 run_command() {
@@ -83,10 +82,12 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h|--help)
       show_help
+      exit 0
       ;;
     *)
       echo -e "${RED}Unknown option: $1${NC}"
       show_help
+      exit 0
       ;;
   esac
 done

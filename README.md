@@ -30,6 +30,8 @@ docker compose build
 - Starts all necessary docker services
 
 There are some options available (see `./run.sh --help`)
+
+The backend is running on `localhost:5001`
 ### Create new Database migration
 ```shell
 ./run.sh migrate
