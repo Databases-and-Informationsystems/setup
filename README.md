@@ -30,6 +30,18 @@ docker compose build
 - Starts all necessary docker services
 
 There are some options available (see `./run.sh --help`)
+In case the terminal closes directly with the --help flag on Windows, the options are additionally listed here:
+- Options:
+  - `./run.sh dev [-s|--skip] [-v|--verbose] [-d|--delete]`
+  - `./run.sh migrate [-v|--verbose]"`
+- Commands:
+  - `dev`: Starts the stack in development mode
+  - `migrate`: Creates Flask migrations
+- Options:
+  - `-s`, `--skip`: Skip the database upgrade in dev mode
+  - `-v`, `--verbose`: Run in verbose mode (stream all input/output to terminal)
+  - `-d`, `--delete`: Delete the volume annotation_data before starting
+  - `-h`, `--help`: Show this help message
 
 The backend is running on `localhost:5001`
 ### Create new Database migration
