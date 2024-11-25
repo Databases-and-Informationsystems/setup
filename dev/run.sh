@@ -43,6 +43,36 @@ run_command() {
   fi
 }
 
+TRACKED_FILES=("../../api/requirements.txt" "../../api/Dockerfile")
+CHECKSUM_FILE=".build_checksum"
+
+check_files_changes() {
+  for file in "${TRACKED_FILES[@]}"; do
+    if [ ! -f "$file" ]; then
+      echo -e "${RED}Error: $file not found.${NC}"
+      exit 1
+    fi
+  done
+
+  CURRENT_CHECKSUM=$(cat "${TRACKED_FILES[@]}" | sha256sum | awk '{ print $1 }')
+
+  if [ ! -f "$CHECKSUM_FILE" ]; then
+    echo "$CURRENT_CHECKSUM" > "$CHECKSUM_FILE"
+    echo -e "${YELLOW}No previous checksum found. Building images...${NC}"
+    return 0
+  fi
+
+  SAVED_CHECKSUM=$(cat "$CHECKSUM_FILE")
+  if [ "$CURRENT_CHECKSUM" != "$SAVED_CHECKSUM" ]; then
+    echo "$CURRENT_CHECKSUM" > "$CHECKSUM_FILE"
+    echo -e "${YELLOW}Tracked files changed. Rebuilding images...${NC}"
+    return 0
+  else
+    echo -e "${GREEN}Tracked files unchanged. Skipping build...${NC}"
+    return 1
+  fi
+}
+
 cleanup() {
   echo -e "\n${YELLOW}Stopping all running containers...${NC}"
   docker compose down
@@ -100,6 +130,10 @@ fi
 
 case $COMMAND in
   dev)
+    if check_files_changes; then
+      run_command docker compose build
+    fi
+
     if [ "$DELETE" = true ]; then
       echo -e "${YELLOW}Deleting (volume/database) 'annotation_data'...${NC}"
       run_command docker volume rm annotation_data
