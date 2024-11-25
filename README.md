@@ -11,17 +11,11 @@
 │   ├── frontend
 │   ├── setup
   ```
-### Create development setup
 
+### Run development setup
 ```shell
 cd dev
 ```
-
-```shell
-docker compose build
-```
-
-### Run development setup
 ```shell
 ./run.sh dev
 ```
