@@ -37,7 +37,11 @@ In case the terminal closes directly with the --help flag on Windows, the option
   - `-d`, `--delete`: Delete the volume annotation_data before starting
   - `-h`, `--help`: Show this help message
 
-The backend is running on `localhost:5001`
+#### Access the services
+The backend can be accessed via `localhost/api`
+
+The frontend can be accessed via `localhost`
+
 ### Create new Database migration
 ```shell
 ./run.sh migrate
