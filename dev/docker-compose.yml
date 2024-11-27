@@ -36,6 +36,16 @@ services:
     depends_on:
       - flask
 
+  nginx:
+    image: nginx:latest
+    container_name: annotation_nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - react
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+
 volumes:
   data:
     name: annotation_data
