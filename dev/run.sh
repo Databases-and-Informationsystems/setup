@@ -43,7 +43,7 @@ run_command() {
   fi
 }
 
-TRACKED_FILES=("../../api/requirements.txt" "../../api/Dockerfile")
+TRACKED_FILES=("../../api/requirements.txt" "../../api/Dockerfile" "../../frontend/Dockerfile" "../../frontend/package.json")
 CHECKSUM_FILE=".build_checksum"
 
 check_files_changes() {
@@ -73,9 +73,18 @@ check_files_changes() {
   fi
 }
 
+
+RUN_CLEANUP=false
 cleanup() {
+  RUN_CLEANUP=true
   echo -e "\n${YELLOW}Stopping all running containers...${NC}"
   docker compose down
+
+  # Kill the monitor process if it is still running
+  if [ ! -z "$MONITOR_PID" ]; then
+    kill "$MONITOR_PID" 2>/dev/null
+  fi
+
   echo -e "\033[0;32m Cleanup complete. Exiting. \033[0m"
   exit 0
 }
@@ -127,6 +136,36 @@ if [[ -z "$COMMAND" ]]; then
   show_help
 fi
 
+monitor_containers() {
+  CONTAINERS=("annotation_backend" "annotation_frontend" "annotation_database")
+
+  while [ ${#CONTAINERS[@]} -gt 0 ]; do
+    for i in "${!CONTAINERS[@]}"; do
+      container="${CONTAINERS[$i]}"
+
+      if [ -z "$container" ]; then
+        continue
+      fi
+
+      # Check if the container is running
+      status=$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null)
+      if [ "$status" != "true" ]; then
+        echo -e "${RED}Container $container has stopped. Run again with -v for further information.${NC}"
+        
+        unset CONTAINERS[$i]
+      fi
+    done
+    
+    # remove empty entries from array
+    CONTAINERS=("${CONTAINERS[@]}")
+    
+    if [ ${#CONTAINERS[@]} -eq 0 ]; then
+      return 0
+    fi
+    
+    sleep 5
+  done
+}
 
 case $COMMAND in
   dev)
@@ -153,13 +192,14 @@ case $COMMAND in
     echo -e "${GREEN}Starting the dev stack...${NC}"
     run_command docker compose up
   
+    # Start monitoring_containers() in the background and save PID to stop it after cleanup()
+    monitor_containers &
+    MONITOR_PID=$!
     echo ""
     echo -e "${GREEN}Dev stack started (Press CTRL+C to stop)...${NC}"
     echo ""
-    # Infinite loop to wait for CTRL+C
-    while true; do
-      sleep 1
-    done
+    # wait for CTRL+C
+    wait
     ;;
   
   migrate)
