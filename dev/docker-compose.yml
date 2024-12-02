@@ -38,6 +38,19 @@ services:
     volumes:
       - ../../pipeline:/app
 
+  flask-difference-calc:
+    build: ../../difference-calc
+    container_name: annotation_difference_calc
+    environment:
+      FLASK_APP: run.py
+      FLASK_DEBUG: 1
+      FLASK_ENV: development
+      FLASK_RUN_PORT: 8443
+    ports:
+      - "8443:8443"
+    volumes:
+      - ../../difference-calc:/app
+
   react:
     build: ../../frontend
     container_name: annotation_frontend
