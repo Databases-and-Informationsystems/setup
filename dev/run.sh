@@ -43,7 +43,7 @@ run_command() {
   fi
 }
 
-TRACKED_FILES=("../../api/requirements.txt" "../../api/Dockerfile" "../../pipeline/requirements.txt" "../../pipeline/Dockerfile" "../../frontend/Dockerfile" "../../frontend/package.json")
+TRACKED_FILES=("../../api/requirements.txt" "../../api/Dockerfile" "../../pipeline/requirements.txt" "../../pipeline/Dockerfile" "../../difference-calc/requirements.txt" "../../difference-calc/Dockerfile" "../../frontend/Dockerfile" "../../frontend/package.json")
 CHECKSUM_FILE=".build_checksum"
 
 check_files_changes() {
