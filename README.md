@@ -10,6 +10,8 @@
 │   ├── api
 │   ├── frontend
 │   ├── setup
+│   ├── pipeline
+│   ├── difference-calc
   ```
 
 ### Run development setup

@@ -1,0 +1,7 @@
+services:
+  python-black-container:
+    build:
+      context: .
+    volumes:
+      - ../../../..:/app # use ./annotation (root folder for all microservices) as base dir
+    working_dir: /app
