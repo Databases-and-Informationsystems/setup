@@ -77,13 +77,13 @@ check_files_changes() {
 RUN_CLEANUP=false
 cleanup() {
   RUN_CLEANUP=true
-  echo -e "\n${YELLOW}Stopping all running containers...${NC}"
-  docker compose down
-
   # Kill the monitor process if it is still running
   if [ ! -z "$MONITOR_PID" ]; then
     kill "$MONITOR_PID" 2>/dev/null
   fi
+
+  echo -e "\n${YELLOW}Stopping all running containers...${NC}"
+  docker compose down
 
   echo -e "\033[0;32m Cleanup complete. Exiting. \033[0m"
   exit 0
@@ -105,6 +105,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     migrate)
       COMMAND="migrate"
+      shift
+      ;;
+    test)
+      COMMAND="test"
       shift
       ;;
     -s|--skip)
@@ -175,7 +179,7 @@ case $COMMAND in
 
     if [ "$DELETE" = true ]; then
       echo -e "${YELLOW}Deleting (volume/database) 'annotation_data'...${NC}"
-      run_command docker volume rm annotation_data
+      run_command docker volume rm annotation_data > /dev/null 2>&1
       echo -e "${GREEN}(Volume/Database) deleted successfully.${NC}"
     fi
     if [ "$SKIP" = false ]; then
@@ -183,10 +187,10 @@ case $COMMAND in
       run_command docker compose up -d db
       
       echo -e "${GREEN}Run Flask database upgrade...${NC}"
-      run_command docker compose run --rm flask flask db upgrade
+      run_command docker compose run --rm flask-api flask db upgrade
       
       echo -e "${GREEN}Stopping database container...${NC}"
-      run_command docker compose down
+      run_command docker compose down db
     fi
     
     echo -e "${GREEN}Starting the dev stack...${NC}"
@@ -207,10 +211,24 @@ case $COMMAND in
     run_command docker compose up -d db
     
     echo -e "${GREEN}Create Flask database migration...${NC}"
-    run_command docker compose run --rm flask flask db migrate
+    run_command docker compose run --rm flask-api flask db migrate
     
     echo -e "${GREEN}Stopping database container...${NC}"
     run_command docker compose down
+    ;;
+
+  test)
+    echo -e "${GREEN}Running Tests in difference-calc project...${NC}"
+
+    # Run the tests
+    docker compose run --rm flask-difference-calc pytest
+    TEST_EXIT_CODE=$?
+
+    if [ $TEST_EXIT_CODE -eq 0 ]; then
+      echo -e "${GREEN}All tests passed!${NC}"
+    else
+      echo -e "${RED}Some tests failed!${NC}"
+fi
     ;;
   
   *)
