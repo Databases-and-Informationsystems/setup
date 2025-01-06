@@ -50,14 +50,14 @@ fi
 
 # Run Black in the Docker container
 # shellcheck disable=SC2086
-docker compose -f $DOCKER_COMPOSE_FILE exec -T python-black-container black --check $REPO_PATH/$CHANGED_PYTHON_FILES --exclude "migrations"
+docker compose -f $DOCKER_COMPOSE_FILE exec -T python-black-container black --check $(echo $CHANGED_PYTHON_FILES | sed "s| | $REPO_PATH/|g" | sed "s|^|$REPO_PATH/|") --exclude "migrations"
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -ne 0 ]; then
   echo "Commit failed: Black formatting check did not pass."
   # Show detailed output by running Black again
   # shellcheck disable=SC2086
-  docker compose -f $DOCKER_COMPOSE_FILE exec -T python-black-container black $REPO_PATH/$CHANGED_PYTHON_FILES --diff
+  docker compose -f $DOCKER_COMPOSE_FILE exec -T python-black-container black $(echo $CHANGED_PYTHON_FILES | sed "s| | $REPO_PATH/|g" | sed "s|^|$REPO_PATH/|") --diff
   exit 1
 else
   echo "Black formatting check passed. Proceeding with commit."
