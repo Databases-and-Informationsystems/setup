@@ -1,5 +1,9 @@
+networks:
+  annotation_network:
+    name: annotation_network 
+
 services:
-  db:
+  annotation_database:
     image: postgres:17
     container_name: annotation_database
     environment:
@@ -10,8 +14,10 @@ services:
       - "5432:5432"
     volumes:
       - data:/var/lib/postgresql/data
+    networks:
+      - annotation_network
 
-  flask-api:
+  annotation_backend:
     build: ../../api
     container_name: annotation_backend
     environment:
@@ -22,10 +28,12 @@ services:
       - "5001:5000"
     volumes:
       - ../../api:/app
+    networks:
+      - annotation_network
     depends_on:
-      - db
+      - annotation_database
 
-  flask-pipeline:
+  annotation_pipeline:
     build: ../../pipeline
     container_name: annotation_pipeline
     environment:
@@ -38,8 +46,10 @@ services:
       - "8080:8080"
     volumes:
       - ../../pipeline:/app
+    networks:
+      - annotation_network
 
-  flask-difference-calc:
+  annotation_difference_calc:
     build: ../../difference-calc
     container_name: annotation_difference_calc
     environment:
@@ -51,8 +61,10 @@ services:
       - "8443:8443"
     volumes:
       - ../../difference-calc:/app
+    networks:
+      - annotation_network
 
-  react:
+  annotation_frontend:
     build: ../../frontend
     container_name: annotation_frontend
     stdin_open: true
@@ -62,7 +74,10 @@ services:
       - '../../frontend:/app'
       - 'node_modules:/app/node_modules'
     depends_on:
-      - flask-api
+      - annotation_backend
+    networks:
+      - annotation_network
+
 
   nginx:
     image: nginx:latest
@@ -70,9 +85,14 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - react
+      - annotation_frontend
+      - annotation_backend
+      - annotation_difference_calc
+      - annotation_pipeline
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - annotation_network
 
 volumes:
   data:
