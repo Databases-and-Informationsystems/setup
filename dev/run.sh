@@ -146,13 +146,13 @@ case $COMMAND in
     fi
     if [ "$SKIP" = false ]; then
       echo -e "${GREEN}Starting database container...${NC}"
-      run_command docker compose up -d db  > /dev/null
+      run_command docker compose up -d annotation_database  > /dev/null
       
       echo -e "${GREEN}Run Flask database upgrade...${NC}"
-      run_command docker compose run --rm flask-api flask db upgrade > /dev/null
+      run_command docker compose run --rm annotation_backend flask db upgrade > /dev/null
       
       echo -e "${GREEN}Stopping database container...${NC}"
-      run_command docker compose down db > /dev/null
+      run_command docker compose down annotation_database > /dev/null
     fi
     
     echo -e "${GREEN}Starting the dev stack...${NC}"
@@ -169,14 +169,14 @@ case $COMMAND in
   
   migrate)
     echo -e "${GREEN}Starting database container...${NC}"
-    run_command docker compose up -d db > /dev/null
+    run_command docker compose up -d annotation_database > /dev/null
     
     echo -e "${GREEN}Create Flask database migration...${NC}"
-    run_command docker compose run --rm flask-api flask db migrate
+    run_command docker compose run --rm annotation_backend flask db migrate
     if [ $? -ne 0 ]; then
       echo -e "${RED}Flask database upgrade failed! Exiting...${NC}"
       # run_command docker compose down db -v
-      run_command docker compose down db
+      run_command docker compose down annotation_database
       exit 1
     fi
     echo -e "${GREEN}Stopping database container...${NC}"
