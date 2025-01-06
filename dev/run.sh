@@ -29,7 +29,7 @@ show_help() {
 }
 
 run_command() {
-  if [ "$VERBOSE" = true ]; then
+  if [ "$VERBOSE" = true ] || [[ "$@" == *"flask db upgrade"* ]]; then
     set -x # Enable command tracing
     $@
     set +x # Disable command tracing
@@ -74,14 +74,7 @@ check_files_changes() {
 }
 
 
-RUN_CLEANUP=false
 cleanup() {
-  RUN_CLEANUP=true
-  # Kill the monitor process if it is still running
-  if [ ! -z "$MONITOR_PID" ]; then
-    kill "$MONITOR_PID" 2>/dev/null
-  fi
-
   echo -e "\n${YELLOW}Stopping all running containers...${NC}"
   docker compose down
 
@@ -140,37 +133,6 @@ if [[ -z "$COMMAND" ]]; then
   show_help
 fi
 
-monitor_containers() {
-  CONTAINERS=("annotation_backend" "annotation_frontend" "annotation_database")
-
-  while [ ${#CONTAINERS[@]} -gt 0 ]; do
-    for i in "${!CONTAINERS[@]}"; do
-      container="${CONTAINERS[$i]}"
-
-      if [ -z "$container" ]; then
-        continue
-      fi
-
-      # Check if the container is running
-      status=$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null)
-      if [ "$status" != "true" ]; then
-        echo -e "${RED}Container $container has stopped. Run again with -v for further information.${NC}"
-        
-        unset CONTAINERS[$i]
-      fi
-    done
-    
-    # remove empty entries from array
-    CONTAINERS=("${CONTAINERS[@]}")
-    
-    if [ ${#CONTAINERS[@]} -eq 0 ]; then
-      return 0
-    fi
-    
-    sleep 5
-  done
-}
-
 case $COMMAND in
   dev)
     if check_files_changes; then
@@ -184,37 +146,41 @@ case $COMMAND in
     fi
     if [ "$SKIP" = false ]; then
       echo -e "${GREEN}Starting database container...${NC}"
-      run_command docker compose up -d db
+      run_command docker compose up -d db  > /dev/null
       
       echo -e "${GREEN}Run Flask database upgrade...${NC}"
-      run_command docker compose run --rm flask-api flask db upgrade
+      run_command docker compose run --rm flask-api flask db upgrade > /dev/null
       
       echo -e "${GREEN}Stopping database container...${NC}"
-      run_command docker compose down db
+      run_command docker compose down db > /dev/null
     fi
     
     echo -e "${GREEN}Starting the dev stack...${NC}"
     run_command docker compose up
-  
-    # Start monitoring_containers() in the background and save PID to stop it after cleanup()
-    monitor_containers &
-    MONITOR_PID=$!
+
     echo ""
     echo -e "${GREEN}Dev stack started (Press CTRL+C to stop)...${NC}"
     echo ""
-    # wait for CTRL+C
-    wait
+    # Infinite loop to wait for CTRL+C
+    while true; do
+      sleep 1
+    done
     ;;
   
   migrate)
     echo -e "${GREEN}Starting database container...${NC}"
-    run_command docker compose up -d db
+    run_command docker compose up -d db > /dev/null
     
     echo -e "${GREEN}Create Flask database migration...${NC}"
     run_command docker compose run --rm flask-api flask db migrate
-    
+    if [ $? -ne 0 ]; then
+      echo -e "${RED}Flask database upgrade failed! Exiting...${NC}"
+      # run_command docker compose down db -v
+      run_command docker compose down db
+      exit 1
+    fi
     echo -e "${GREEN}Stopping database container...${NC}"
-    run_command docker compose down
+    run_command docker compose down > /dev/null
     ;;
 
   test)
