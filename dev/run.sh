@@ -120,7 +120,9 @@ restore_select() {
   fi
 
   for i in "${!volumes[@]}"; do
-    echo "$((i + 1)). ${volumes[$i]}"
+    # Strip the prefix "annotation_data_" from each volume name
+    local stripped_name=${volumes[$i]#annotation_data_}
+    echo "$((i + 1)). ${stripped_name}"
   done
 
   echo -ne "\n${GREEN}Enter the number of the volume to use:${NC} "
