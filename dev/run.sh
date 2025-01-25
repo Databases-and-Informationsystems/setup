@@ -13,14 +13,14 @@ show_help() {
   echo "  $0 migrate [-v|--verbose]"
   echo "  $0 restore create <name>"
   echo "  $0 restore"
-  echo "  $0 test"
+  echo "  $0 test [api|difference-calc]"
   echo "  $0 -h|--help"
   echo ""
   echo -e "${YELLOW}Commands:${NC}"
   echo "  dev         Starts the stack in development mode"
   echo "  migrate     Creates Flask migrations"
   echo "  restore     Manages annotation_data volumes"
-  echo "  test        Runs tests (projects not integrated yet)"
+  echo "  test        Runs tests (all, api, or difference-calc)"
   echo ""
   echo -e "${YELLOW}Options:${NC}"
   echo "  -s, --skip      Skip the database upgrade in dev mode"
@@ -162,6 +162,48 @@ cleanup() {
   exit 0
 }
 
+test() {
+  local target=$1
+
+  if [ "$target" == "api" ] || [ -z "$target" ]; then
+    echo -e "${GREEN}Running Unittests in Backend (API) project...${NC}"
+    docker compose run --rm annotation_backend python -m unittest discover -s tests
+    BACKEND_TEST_EXIT_CODE=$?
+
+    if [ $BACKEND_TEST_EXIT_CODE -eq 0 ]; then
+      echo -e "${GREEN}All unittests in Backend (API) passed!${NC}"
+    else
+      echo -e "${RED}Some unittests in Backend (API) failed!${NC}"
+    fi
+  fi
+
+  if [ "$target" == "difference-calc" ] || [ -z "$target" ]; then
+    echo -e "${GREEN}Running Pytest in Difference-Calc project...${NC}"
+    docker compose run --rm annotation_difference_calc pytest
+    DIFF_CALC_TEST_EXIT_CODE=$?
+
+    if [ $DIFF_CALC_TEST_EXIT_CODE -eq 0 ]; then
+      echo -e "${GREEN}All Pytest tests in Difference-Calc passed!${NC}"
+    else
+      echo -e "${RED}Some Pytest tests in Difference-Calc failed!${NC}"
+    fi
+  fi
+
+  if [ "$target" == "api" ]; then
+    exit $BACKEND_TEST_EXIT_CODE
+  elif [ "$target" == "difference-calc" ]; then
+    exit $DIFF_CALC_TEST_EXIT_CODE
+  else
+    if [ $BACKEND_TEST_EXIT_CODE -eq 0 ] && [ $DIFF_CALC_TEST_EXIT_CODE -eq 0 ]; then
+      echo -e "${GREEN}All tests passed successfully!${NC}"
+      exit 0
+    else
+      echo -e "${RED}Some tests failed. Please check the logs above.${NC}"
+      exit 1
+    fi
+  fi
+}
+
 # Attach the cleanup function to SIGINT (CTRL+C)
 trap cleanup SIGINT 
 
@@ -183,6 +225,8 @@ while [[ $# -gt 0 ]]; do
       ;;
     test)
       COMMAND="test"
+      shift
+      SUBCOMMAND=$1
       shift
       ;;
     restore)
@@ -296,18 +340,7 @@ case $COMMAND in
     ;;
 
   test)
-    echo -e "${GREEN}Running Tests in difference-calc project...${NC}"
-
-    # Run the tests
-    # TODO not all test are included yet
-    docker compose run --rm flask-difference-calc pytest
-    TEST_EXIT_CODE=$?
-
-    if [ $TEST_EXIT_CODE -eq 0 ]; then
-      echo -e "${GREEN}All tests passed!${NC}"
-    else
-      echo -e "${RED}Some tests failed!${NC}"
-    fi
+    test "$SUBCOMMAND"
     ;;
 
   restore)
