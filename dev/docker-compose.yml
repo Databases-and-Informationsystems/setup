@@ -97,5 +97,6 @@ services:
 volumes:
   data:
     name: annotation_data
+    external: true # Cloned volume is marked as external
   node_modules:
     name: node_modules

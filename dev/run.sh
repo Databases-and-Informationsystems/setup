@@ -11,11 +11,16 @@ show_help() {
   echo -e "${GREEN}Usage:${NC}"
   echo "  $0 dev [-s|--skip] [-v|--verbose] [-d|--delete]"
   echo "  $0 migrate [-v|--verbose]"
+  echo "  $0 restore create <name>"
+  echo "  $0 restore"
+  echo "  $0 test"
   echo "  $0 -h|--help"
   echo ""
   echo -e "${YELLOW}Commands:${NC}"
   echo "  dev         Starts the stack in development mode"
   echo "  migrate     Creates Flask migrations"
+  echo "  restore     Manages annotation_data volumes"
+  echo "  test        Runs tests (projects not integrated yet)"
   echo ""
   echo -e "${YELLOW}Options:${NC}"
   echo "  -s, --skip      Skip the database upgrade in dev mode"
@@ -73,6 +78,79 @@ check_files_changes() {
   fi
 }
 
+clone_volume() {
+  local source_volume=$1
+  local target_volume=$2
+
+  echo -e "${YELLOW}Cloning volume '${source_volume}' to '${target_volume}'...${NC}"
+
+  docker volume create "$target_volume" > /dev/null 2>&1
+
+  docker run --rm \
+    -v "${source_volume}:/from" \
+    -v "${target_volume}:/to" \
+    alpine ash -c "cd /from && cp -a . /to" > /dev/null 2>&1
+
+  if [ $? -eq 0 ]; then
+    echo -e "${GREEN}Volume '${target_volume}' created successfully!${NC}"
+  else
+    echo -e "${RED}Failed to clone volume '${source_volume}' to '${target_volume}'.${NC}"
+    exit 1
+  fi
+}
+
+restore_create() {
+  local volume_name=$1
+  if [ -z "$volume_name" ]; then
+    echo -e "${RED}Error: No volume name provided.${NC}"
+    echo -e "${YELLOW}Usage: $0 restore create <name>${NC}"
+    exit 1
+  fi
+
+  clone_volume "annotation_data" "annotation_data_$volume_name"
+}
+
+restore_select() {
+  echo -e "${YELLOW}Available volumes:${NC}"
+
+  local volumes=( $(docker volume ls --filter name=annotation_data_ --format "{{.Name}}") )
+  if [ ${#volumes[@]} -eq 0 ]; then
+    echo -e "${RED}No cloned volumes found.${NC}"
+    exit 1
+  fi
+
+  for i in "${!volumes[@]}"; do
+    echo "$((i + 1)). ${volumes[$i]}"
+  done
+
+  echo -ne "\n${GREEN}Enter the number of the volume to use:${NC} "
+  read selection
+
+  if ! [[ "$selection" =~ ^[0-9]+$ ]] || [ "$selection" -lt 1 ] || [ "$selection" -gt ${#volumes[@]} ]; then
+    echo -e "${RED}Invalid selection. No volume was selected.${NC}"
+    exit 1
+  fi
+
+  local selected_volume=${volumes[$((selection - 1))]}
+
+  echo -e "${YELLOW}Replacing 'annotation_data' with '${selected_volume}'...${NC}"
+
+  docker volume rm annotation_data > /dev/null 2>&1
+  docker volume create --name annotation_data > /dev/null 2>&1
+
+  docker run --rm \
+    -v "${selected_volume}:/from" \
+    -v "annotation_data:/to" \
+    alpine ash -c "cd /from && cp -a . /to" > /dev/null 2>&1
+
+  if [ $? -eq 0 ]; then
+    echo -e "${GREEN}Volume 'annotation_data' replaced successfully with '${selected_volume}'!${NC}"
+  else
+    echo -e "${RED}Failed to replace 'annotation_data' with '${selected_volume}'.${NC}"
+    exit 1
+  fi
+}
+
 
 cleanup() {
   echo -e "\n${YELLOW}Stopping all running containers...${NC}"
@@ -86,6 +164,7 @@ cleanup() {
 trap cleanup SIGINT 
 
 COMMAND=""
+SUBCOMMAND=""
 SKIP=false
 VERBOSE=false
 DELETE=false
@@ -104,6 +183,10 @@ while [[ $# -gt 0 ]]; do
       COMMAND="test"
       shift
       ;;
+    restore)
+      COMMAND="restore"
+      shift
+      ;;
     -s|--skip)
       SKIP=true
       shift
@@ -120,10 +203,19 @@ while [[ $# -gt 0 ]]; do
       show_help
       exit 0
       ;;
+    create)
+      SUBCOMMAND="create"
+      shift
+      ;;
     *)
-      echo -e "${RED}Unknown option: $1${NC}"
-      show_help
-      exit 0
+      if [ -z "$SUBCOMMAND" ]; then
+        echo -e "${RED}Unknown option: $1${NC}"
+        show_help
+        exit 0
+      else
+        ARGS+=("$1")
+        shift
+      fi
       ;;
   esac
 done
@@ -144,6 +236,24 @@ case $COMMAND in
       run_command docker volume rm annotation_data > /dev/null 2>&1
       echo -e "${GREEN}(Volume/Database) deleted successfully.${NC}"
     fi
+
+    echo -e "${YELLOW}Checking for the existence of the 'annotation_data' volume...${NC}"
+
+    if ! docker volume inspect annotation_data > /dev/null 2>&1; then
+      echo -e "${RED}Volume 'annotation_data' not found.${NC}"
+      echo -e "${YELLOW}Creating a new 'annotation_data' volume...${NC}"
+      docker volume create annotation_data > /dev/null 2>&1
+      if [ $? -eq 0 ]; then
+        echo -e "${GREEN}Volume 'annotation_data' created successfully!${NC}"
+      else
+        echo -e "${RED}Failed to create volume 'annotation_data'. Exiting...${NC}"
+        exit 1
+      fi
+    else
+      echo -e "${GREEN}Volume 'annotation_data' already exists.${NC}"
+    fi
+
+
     if [ "$SKIP" = false ]; then
       echo -e "${GREEN}Starting database container...${NC}"
       run_command docker compose up -d annotation_database  > /dev/null
@@ -187,6 +297,7 @@ case $COMMAND in
     echo -e "${GREEN}Running Tests in difference-calc project...${NC}"
 
     # Run the tests
+    # TODO not all test are included yet
     docker compose run --rm flask-difference-calc pytest
     TEST_EXIT_CODE=$?
 
@@ -194,7 +305,23 @@ case $COMMAND in
       echo -e "${GREEN}All tests passed!${NC}"
     else
       echo -e "${RED}Some tests failed!${NC}"
-fi
+    fi
+    ;;
+
+  restore)
+   case $SUBCOMMAND in
+      create)
+        restore_create "${ARGS[0]}"
+        ;;
+      "")
+        restore_select
+        ;;
+      *)
+        echo -e "${RED}Unknown subcommand for restore: $SUBCOMMAND${NC}"
+        show_help
+        exit 1
+        ;;
+    esac
     ;;
   
   *)
