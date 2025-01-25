@@ -18,10 +18,10 @@ REPO_NAME=$2
 CURRENT_BRANCH=$3
 CHANGED_PYTHON_FILES=$4
 
+# Repo path inside of the docker context (all working directories are /app)
 REPO_PATH="/app/$REPO_NAME"
 
-# Prevent commits directly to main or master
-#CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+# Prevent commits directly to main, master or development branch
 if [[ "$CURRENT_BRANCH" == "main" || "$CURRENT_BRANCH" == "master" || "$CURRENT_BRANCH" == "development" ]]; then
   echo "Direct commits to the '$CURRENT_BRANCH' branch are not allowed."
   echo "Please create a feature branch and commit your changes there."
